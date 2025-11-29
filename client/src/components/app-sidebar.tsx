@@ -1,10 +1,11 @@
-import { 
-  LayoutDashboard, 
-  Users, 
+import {
+  LayoutDashboard,
+  Users,
   UserCheck,
-  Receipt, 
+  Receipt,
   TrendingUp,
-  GraduationCap
+  GraduationCap,
+  Settings
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
@@ -43,6 +44,12 @@ const menuItems = [
     url: "/cobrancas",
     icon: Receipt,
     testId: "link-charges",
+  },
+  {
+    title: "Configurações",
+    url: "/configuracoes",
+    icon: Settings,
+    testId: "link-settings",
   },
 ];
 

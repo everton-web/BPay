@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { 
+import {
   insertStudentSchema,
   updateStudentSchema,
   insertChargeSchema,
@@ -55,12 +55,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const validatedData = updateStudentSchema.parse(req.body);
       const updatedStudent = await storage.updateStudent(id, validatedData);
-      
+
       if (!updatedStudent) {
         res.status(404).json({ error: "Student not found" });
         return;
       }
-      
+
       res.json(updatedStudent);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -75,8 +75,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Charges
   app.get("/api/charges", async (req, res) => {
     try {
-      const { status, studentName, campusName, startDate, endDate} = req.query;
-      
+      const { status, studentName, campusName, startDate, endDate } = req.query;
+
       // Build filters object, only including defined values
       const filters: any = {};
       if (status && status !== "all") {
@@ -94,7 +94,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (endDate && typeof endDate === "string") {
         filters.endDate = endDate;
       }
-      
+
       const charges = await storage.getCharges(
         Object.keys(filters).length > 0 ? filters : undefined
       );
@@ -124,7 +124,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/webhook/payment", async (req, res) => {
     try {
       const { chargeId } = req.body;
-      
+
       if (!chargeId) {
         return res.status(400).json({ error: "chargeId is required" });
       }
@@ -188,7 +188,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/charges/export", async (req, res) => {
     try {
       const { status, studentName, campusName, startDate, endDate } = req.query;
-      
+
       // Build filters object to honor same filters as main charges endpoint
       const filters: any = {};
       if (status && status !== "all") {
@@ -206,11 +206,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (endDate && typeof endDate === "string") {
         filters.endDate = endDate;
       }
-      
+
       const charges = await storage.getCharges(
         Object.keys(filters).length > 0 ? filters : undefined
       );
-      
+
       // Generate CSV
       const headers = [
         "ID",
@@ -232,10 +232,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         charge.status === "paid"
           ? "Pago"
           : charge.status === "pending"
-          ? "Em Aberto"
-          : charge.status === "overdue"
-          ? "Atrasado"
-          : "Cancelado",
+            ? "Em Aberto"
+            : charge.status === "overdue"
+              ? "Atrasado"
+              : "Cancelado",
         charge.paidAt ? new Date(charge.paidAt).toLocaleDateString("pt-BR") : "-",
         charge.paidAmount || "-",
       ]);
@@ -255,14 +255,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const bodySchema = z.object({
         targetMonth: z.string().regex(/^\d{4}-\d{2}$/, "Format must be YYYY-MM"),
       });
-      
+
       const { targetMonth } = bodySchema.parse(req.body);
       const result = await generateRecurringCharges(
         targetMonth,
         "manual",
         "admin"
       );
-      
+
       res.json({
         success: true,
         message: `${result.chargesCreated} cobranças geradas para ${result.targetMonth}`,
@@ -338,7 +338,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const validatedData = updateGuardianSchema.parse(req.body);
-      
+
       // Double check that at least one field was actually provided after validation
       if (Object.keys(validatedData).length === 0) {
         res.status(400).json({ error: "At least one valid field must be provided for update" });
@@ -399,18 +399,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/student-guardians", async (req, res) => {
     try {
       const validatedData = insertStudentGuardianSchema.parse(req.body);
-      
+
       // Check if relationship already exists
       const existing = await storage.getStudentGuardianRelationship(
         validatedData.studentId,
         validatedData.guardianId
       );
-      
+
       if (existing) {
         res.status(400).json({ error: "Relationship already exists" });
         return;
       }
-      
+
       const relationship = await storage.associateStudentGuardian(validatedData);
       res.status(201).json(relationship);
     } catch (error) {
@@ -432,8 +432,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.status(204).send();
     } catch (error) {
-      console.error("Error deleting student-guardian relationship:", error);
       res.status(500).json({ error: "Failed to delete relationship" });
+    }
+  });
+
+  // System Settings
+  app.get("/api/settings", async (_req, res) => {
+    try {
+      const settings = await storage.getSystemSettings();
+      // Mask sensitive data if needed, but for now sending as is since it's admin only
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching settings:", error);
+      res.status(500).json({ error: "Failed to fetch settings" });
+    }
+  });
+
+  app.post("/api/settings", async (req, res) => {
+    try {
+      const schema = z.object({
+        settings: z.array(z.object({
+          key: z.string(),
+          value: z.string()
+        }))
+      });
+
+      const { settings } = schema.parse(req.body);
+
+      const updatedSettings = [];
+      for (const setting of settings) {
+        const updated = await storage.updateSystemSetting(setting.key, setting.value);
+        updatedSettings.push(updated);
+      }
+
+      res.json(updatedSettings);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ error: "Validation error", details: error.errors });
+      } else {
+        console.error("Error updating settings:", error);
+        res.status(500).json({ error: "Failed to update settings" });
+      }
     }
   });
 

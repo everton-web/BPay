@@ -11,6 +11,7 @@ import Dashboard from "@/pages/dashboard";
 import Students from "@/pages/students";
 import Guardians from "@/pages/guardians";
 import Charges from "@/pages/charges";
+import Settings from "@/pages/settings";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -20,6 +21,7 @@ function Router() {
       <Route path="/alunos" component={Students} />
       <Route path="/responsaveis" component={Guardians} />
       <Route path="/cobrancas" component={Charges} />
+      <Route path="/configuracoes" component={Settings} />
       <Route component={NotFound} />
     </Switch>
   );

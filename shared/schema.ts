@@ -207,3 +207,17 @@ export const insertStudentGuardianSchema = createInsertSchema(studentGuardians).
 
 export type InsertStudentGuardian = z.infer<typeof insertStudentGuardianSchema>;
 export type StudentGuardian = typeof studentGuardians.$inferSelect;
+
+// Configurações do Sistema
+export const systemSettings = pgTable("system_settings", {
+  key: text("key").primaryKey(), // ex: "payment_gateway_key", "webhook_url"
+  value: text("value").notNull(),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+export const insertSystemSettingSchema = createInsertSchema(systemSettings).omit({
+  updatedAt: true
+});
+
+export type InsertSystemSetting = z.infer<typeof insertSystemSettingSchema>;
+export type SystemSetting = typeof systemSettings.$inferSelect;

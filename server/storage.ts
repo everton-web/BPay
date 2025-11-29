@@ -18,6 +18,8 @@ import {
   charges,
   guardians,
   studentGuardians,
+  systemSettings,
+  type SystemSetting,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, sql, gte, lte } from "drizzle-orm";
@@ -67,6 +69,10 @@ export interface IStorage {
   associateStudentGuardian(data: InsertStudentGuardian): Promise<StudentGuardian>;
   dissociateStudentGuardian(id: string): Promise<boolean>;
   getStudentGuardianRelationship(studentId: string, guardianId: string): Promise<StudentGuardian | undefined>;
+
+  // System Settings
+  getSystemSettings(): Promise<Record<string, string>>;
+  updateSystemSetting(key: string, value: string): Promise<SystemSetting>;
 }
 
 // Generate mock PIX data
@@ -511,6 +517,24 @@ export class DbStorage implements IStorage {
         )
       );
     return relationship;
+  }
+
+  // System Settings
+  async getSystemSettings(): Promise<Record<string, string>> {
+    const settings = await db.select().from(systemSettings);
+    return settings.reduce((acc, curr) => ({ ...acc, [curr.key]: curr.value }), {});
+  }
+
+  async updateSystemSetting(key: string, value: string): Promise<SystemSetting> {
+    const [setting] = await db
+      .insert(systemSettings)
+      .values({ key, value })
+      .onConflictDoUpdate({
+        target: systemSettings.key,
+        set: { value, updatedAt: new Date() },
+      })
+      .returning();
+    return setting;
   }
 }
 
