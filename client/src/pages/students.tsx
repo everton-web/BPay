@@ -55,6 +55,8 @@ export default function Students() {
     queryKey: ["/api/campuses"],
   });
 
+  console.log("Campuses data:", campuses);
+
   const form = useForm<InsertStudent>({
     resolver: zodResolver(insertStudentSchema),
     defaultValues: {
@@ -76,20 +78,20 @@ export default function Students() {
     onSuccess: () => {
       // Invalidate all students queries
       queryClient.invalidateQueries({
-        predicate: (query) => 
-          Array.isArray(query.queryKey) && 
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
           query.queryKey[0] === "/api/students"
       });
       // Invalidate all charges queries (new student affects potential charges)
       queryClient.invalidateQueries({
-        predicate: (query) => 
-          Array.isArray(query.queryKey) && 
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
           query.queryKey[0] === "/api/charges"
       });
       // Invalidate dashboard metrics
       queryClient.invalidateQueries({
-        predicate: (query) => 
-          Array.isArray(query.queryKey) && 
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
           query.queryKey[0] === "/api/dashboard/metrics"
       });
       toast({
@@ -114,20 +116,20 @@ export default function Students() {
     onSuccess: () => {
       // Invalidate all students queries
       queryClient.invalidateQueries({
-        predicate: (query) => 
-          Array.isArray(query.queryKey) && 
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
           query.queryKey[0] === "/api/students"
       });
       // Invalidate all charges queries (updated student might affect charges)
       queryClient.invalidateQueries({
-        predicate: (query) => 
-          Array.isArray(query.queryKey) && 
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
           query.queryKey[0] === "/api/charges"
       });
       // Invalidate dashboard metrics
       queryClient.invalidateQueries({
-        predicate: (query) => 
-          Array.isArray(query.queryKey) && 
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
           query.queryKey[0] === "/api/dashboard/metrics"
       });
       toast({
@@ -380,8 +382,8 @@ export default function Students() {
                     {createMutation.isPending || updateMutation.isPending
                       ? "Salvando..."
                       : editingStudent
-                      ? "Salvar Alterações"
-                      : "Cadastrar"}
+                        ? "Salvar Alterações"
+                        : "Cadastrar"}
                   </Button>
                 </div>
               </form>
