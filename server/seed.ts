@@ -1,10 +1,10 @@
 import { db } from "./db";
-import { courses, students, charges } from "@shared/schema";
+import { campuses, students, charges } from "@shared/schema";
 
 // Generate mock PIX data
 function generatePixData(chargeId: string, amount: string) {
   const pixQrCode = `00020126580014br.gov.bcb.pix0136${chargeId.replace(/-/g, "").substring(0, 32)}520400005303986540${amount}5802BR5913BPay Pagamentos6009SAO PAULO62070503***6304${Math.random().toString(36).substring(7).toUpperCase()}`;
-  
+
   return {
     pixQrCode,
     pixCopyPaste: pixQrCode,
@@ -18,18 +18,16 @@ async function seed() {
   // Clear existing data
   await db.delete(charges);
   await db.delete(students);
-  await db.delete(courses);
+  await db.delete(campuses);
 
-  // Create courses
-  const coursesData = [
-    { name: "Desenvolvimento Web Full Stack", monthlyFee: "899.00" },
-    { name: "Data Science e Machine Learning", monthlyFee: "1099.00" },
-    { name: "UI/UX Design Avançado", monthlyFee: "749.00" },
-    { name: "Marketing Digital", monthlyFee: "649.00" },
+  // Create campuses
+  const campusesData = [
+    { name: "Bonfim", city: "Salvador", neighborhood: "Bonfim" },
+    { name: "Villas do Atlântico", city: "Lauro de Freitas", neighborhood: "Vilas do Atlântico" },
   ];
 
-  const createdCourses = await db.insert(courses).values(coursesData).returning();
-  console.log(`✅ Created ${createdCourses.length} courses`);
+  const createdCampuses = await db.insert(campuses).values(campusesData).returning();
+  console.log(`✅ Created ${createdCampuses.length} campuses`);
 
   // Create students
   const studentsData = [
@@ -37,9 +35,9 @@ async function seed() {
       name: "Ana Paula Silva",
       email: "ana.silva@email.com",
       phone: "(11) 98765-4321",
-      courseId: createdCourses[0].id,
-      courseName: createdCourses[0].name,
-      monthlyFee: createdCourses[0].monthlyFee,
+      campusId: createdCampuses[0].id,
+      campusName: createdCampuses[0].name,
+      monthlyFee: "899.00",
       dueDay: 10,
       status: "active",
     },
@@ -47,9 +45,9 @@ async function seed() {
       name: "Carlos Eduardo Santos",
       email: "carlos.santos@email.com",
       phone: "(21) 97654-3210",
-      courseId: createdCourses[1].id,
-      courseName: createdCourses[1].name,
-      monthlyFee: createdCourses[1].monthlyFee,
+      campusId: createdCampuses[1].id,
+      campusName: createdCampuses[1].name,
+      monthlyFee: "1099.00",
       dueDay: 15,
       status: "active",
     },
@@ -57,9 +55,9 @@ async function seed() {
       name: "Mariana Costa",
       email: "mariana.costa@email.com",
       phone: "(31) 96543-2109",
-      courseId: createdCourses[2].id,
-      courseName: createdCourses[2].name,
-      monthlyFee: createdCourses[2].monthlyFee,
+      campusId: createdCampuses[0].id,
+      campusName: createdCampuses[0].name,
+      monthlyFee: "749.00",
       dueDay: 5,
       status: "active",
     },
@@ -67,9 +65,9 @@ async function seed() {
       name: "João Pedro Oliveira",
       email: "joao.oliveira@email.com",
       phone: "(41) 95432-1098",
-      courseId: createdCourses[3].id,
-      courseName: createdCourses[3].name,
-      monthlyFee: createdCourses[3].monthlyFee,
+      campusId: createdCampuses[1].id,
+      campusName: createdCampuses[1].name,
+      monthlyFee: "649.00",
       dueDay: 20,
       status: "active",
     },
@@ -77,9 +75,9 @@ async function seed() {
       name: "Beatriz Almeida",
       email: "beatriz.almeida@email.com",
       phone: "(51) 94321-0987",
-      courseId: createdCourses[0].id,
-      courseName: createdCourses[0].name,
-      monthlyFee: createdCourses[0].monthlyFee,
+      campusId: createdCampuses[0].id,
+      campusName: createdCampuses[0].name,
+      monthlyFee: "899.00",
       dueDay: 25,
       status: "active",
     },
@@ -98,7 +96,7 @@ async function seed() {
     const lastMonth = new Date(now);
     lastMonth.setMonth(lastMonth.getMonth() - 1);
     lastMonth.setDate(student.dueDay);
-    
+
     const paidDate = new Date(lastMonth);
     paidDate.setDate(paidDate.getDate() + Math.floor(Math.random() * 3)); // Paid within 3 days
 
@@ -107,7 +105,7 @@ async function seed() {
     chargesData.push({
       studentId: student.id,
       studentName: student.name,
-      courseName: student.courseName,
+      campusName: student.campusName,
       amount: student.monthlyFee,
       dueDate: lastMonth,
       status: "paid",
@@ -128,7 +126,7 @@ async function seed() {
     chargesData.push({
       studentId: student.id,
       studentName: student.name,
-      courseName: student.courseName,
+      campusName: student.campusName,
       amount: student.monthlyFee,
       dueDate: currentCharge,
       status: isOverdue ? "overdue" : "pending",
