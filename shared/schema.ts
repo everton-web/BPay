@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, timestamp, decimal } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, timestamp, decimal, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -29,9 +29,9 @@ export const students = pgTable("students", {
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
-export const insertStudentSchema = createInsertSchema(students).omit({ 
-  id: true, 
-  createdAt: true 
+export const insertStudentSchema = createInsertSchema(students).omit({
+  id: true,
+  createdAt: true
 }).extend({
   dueDay: z.number().min(1).max(31),
   email: z.string().email("Email inválido"),
@@ -77,21 +77,28 @@ export const charges = pgTable("charges", {
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   dueDate: timestamp("due_date").notNull(),
   status: text("status").notNull().default("pending"), // pending, paid, overdue, cancelled
-  
+
   // Dados PIX
   pixQrCode: text("pix_qr_code").notNull(), // String do QR Code
   pixCopyPaste: text("pix_copy_paste").notNull(), // Código Copia e Cola
   pixPaymentLink: text("pix_payment_link").notNull(), // Link de pagamento
-  
+
   // Dados de pagamento
   paidAt: timestamp("paid_at"),
   paidAmount: decimal("paid_amount", { precision: 10, scale: 2 }),
-  
+
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+}, (table) => {
+  return {
+    statusIdx: index("status_idx").on(table.status),
+    campusNameIdx: index("campus_name_idx").on(table.campusName),
+    studentNameIdx: index("student_name_idx").on(table.studentName),
+    dueDateIdx: index("due_date_idx").on(table.dueDate),
+  };
 });
 
-export const insertChargeSchema = createInsertSchema(charges).omit({ 
+export const insertChargeSchema = createInsertSchema(charges).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
@@ -114,7 +121,7 @@ export const chargeGenerationLogs = pgTable("charge_generation_logs", {
   details: text("details"), // JSON string with additional info
 });
 
-export const insertChargeGenerationLogSchema = createInsertSchema(chargeGenerationLogs).omit({ 
+export const insertChargeGenerationLogSchema = createInsertSchema(chargeGenerationLogs).omit({
   id: true,
   executedAt: true,
 });
@@ -156,9 +163,9 @@ export const guardians = pgTable("guardians", {
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
-export const insertGuardianSchema = createInsertSchema(guardians).omit({ 
-  id: true, 
-  createdAt: true 
+export const insertGuardianSchema = createInsertSchema(guardians).omit({
+  id: true,
+  createdAt: true
 }).extend({
   cpf: z.string()
     .regex(/^\d{11}$|^\d{3}\.\d{3}\.\d{3}-\d{2}$/, "CPF deve ter 11 dígitos (com ou sem formatação)")
@@ -190,9 +197,9 @@ export const studentGuardians = pgTable("student_guardians", {
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
-export const insertStudentGuardianSchema = createInsertSchema(studentGuardians).omit({ 
-  id: true, 
-  createdAt: true 
+export const insertStudentGuardianSchema = createInsertSchema(studentGuardians).omit({
+  id: true,
+  createdAt: true
 }).extend({
   studentId: z.string().uuid("ID do aluno inválido"),
   guardianId: z.string().uuid("ID do responsável inválido"),

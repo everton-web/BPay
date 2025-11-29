@@ -72,11 +72,11 @@ export interface IStorage {
 // Generate mock PIX data
 function generatePixData(chargeId: string, amount: string) {
   const pixQrCode = `00020126580014br.gov.bcb.pix0136${chargeId.replace(/-/g, "")}520400005303986540${amount}5802BR5913BPay Pagamentos6009SAO PAULO62070503***6304${Math.random().toString(36).substring(7).toUpperCase()}`;
-  
+
   const pixCopyPaste = pixQrCode;
-  
+
   const pixPaymentLink = `https://bpay.example.com/pix/${chargeId}`;
-  
+
   return { pixQrCode, pixCopyPaste, pixPaymentLink };
 }
 
@@ -223,72 +223,99 @@ export class DbStorage implements IStorage {
     // Use SQL aggregations for performance instead of loading all charges
     // Optional campus filter
     const campusFilter = campusName ? eq(charges.campusName, campusName) : undefined;
-    
-    // Total billed (sum of all charges)
-    const billedQuery = db
-      .select({ total: sql<number>`COALESCE(SUM(CAST(${charges.amount} AS NUMERIC)), 0)` })
-      .from(charges);
-    const [billedResult] = campusFilter 
-      ? await billedQuery.where(campusFilter)
-      : await billedQuery;
-    const totalBilled = billedResult?.total || 0;
 
-    // Total received (sum of paid charges)
-    const [receivedResult] = await db
-      .select({ 
-        total: sql<number>`COALESCE(SUM(CAST(COALESCE(${charges.paidAmount}, ${charges.amount}) AS NUMERIC)), 0)` 
-      })
-      .from(charges)
-      .where(campusFilter ? and(eq(charges.status, "paid"), campusFilter) : eq(charges.status, "paid"));
-    const totalReceived = receivedResult?.total || 0;
+    // Execute all independent queries in parallel
+    const [
+      billedResult,
+      receivedResult,
+      pendingResult,
+      overdueResult,
+      todayResult,
+      dailyReceiptsRaw,
+      statusCounts
+    ] = await Promise.all([
+      // Total billed (sum of all charges)
+      db
+        .select({ total: sql<number>`COALESCE(SUM(CAST(${charges.amount} AS NUMERIC)), 0)` })
+        .from(charges)
+        .where(campusFilter),
 
-    // Total pending
-    const [pendingResult] = await db
-      .select({ total: sql<number>`COALESCE(SUM(CAST(${charges.amount} AS NUMERIC)), 0)` })
-      .from(charges)
-      .where(campusFilter ? and(eq(charges.status, "pending"), campusFilter) : eq(charges.status, "pending"));
-    const totalPending = pendingResult?.total || 0;
+      // Total received (sum of paid charges)
+      db
+        .select({
+          total: sql<number>`COALESCE(SUM(CAST(COALESCE(${charges.paidAmount}, ${charges.amount}) AS NUMERIC)), 0)`
+        })
+        .from(charges)
+        .where(campusFilter ? and(eq(charges.status, "paid"), campusFilter) : eq(charges.status, "paid")),
 
-    // Total overdue
-    const [overdueResult] = await db
-      .select({ total: sql<number>`COALESCE(SUM(CAST(${charges.amount} AS NUMERIC)), 0)` })
-      .from(charges)
-      .where(campusFilter ? and(eq(charges.status, "overdue"), campusFilter) : eq(charges.status, "overdue"));
-    const totalOverdue = overdueResult?.total || 0;
+      // Total pending
+      db
+        .select({ total: sql<number>`COALESCE(SUM(CAST(${charges.amount} AS NUMERIC)), 0)` })
+        .from(charges)
+        .where(campusFilter ? and(eq(charges.status, "pending"), campusFilter) : eq(charges.status, "pending")),
 
-    // Payments today count
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+      // Total overdue
+      db
+        .select({ total: sql<number>`COALESCE(SUM(CAST(${charges.amount} AS NUMERIC)), 0)` })
+        .from(charges)
+        .where(campusFilter ? and(eq(charges.status, "overdue"), campusFilter) : eq(charges.status, "overdue")),
 
-    const todayConditions = campusFilter 
-      ? and(gte(charges.paidAt, today), sql`${charges.paidAt} < ${tomorrow}`, campusFilter)
-      : and(gte(charges.paidAt, today), sql`${charges.paidAt} < ${tomorrow}`);
+      // Payments today count
+      (async () => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
 
-    const [todayResult] = await db
-      .select({ count: sql<number>`COUNT(*)` })
-      .from(charges)
-      .where(todayConditions);
-    const paymentsToday = todayResult?.count || 0;
+        const todayConditions = campusFilter
+          ? and(gte(charges.paidAt, today), sql`${charges.paidAt} < ${tomorrow}`, campusFilter)
+          : and(gte(charges.paidAt, today), sql`${charges.paidAt} < ${tomorrow}`);
 
-    // Daily receipts for last 30 days (grouped by date)
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
-    thirtyDaysAgo.setHours(0, 0, 0, 0);
+        return db
+          .select({ count: sql<number>`COUNT(*)` })
+          .from(charges)
+          .where(todayConditions);
+      })(),
 
-    const dailyConditions = campusFilter
-      ? and(eq(charges.status, "paid"), gte(charges.paidAt, thirtyDaysAgo), campusFilter)
-      : and(eq(charges.status, "paid"), gte(charges.paidAt, thirtyDaysAgo));
+      // Daily receipts for last 30 days (grouped by date)
+      (async () => {
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
+        thirtyDaysAgo.setHours(0, 0, 0, 0);
 
-    const dailyReceiptsRaw = await db
-      .select({
-        date: sql<string>`DATE(${charges.paidAt})`,
-        amount: sql<number>`COALESCE(SUM(CAST(COALESCE(${charges.paidAmount}, ${charges.amount}) AS NUMERIC)), 0)`,
-      })
-      .from(charges)
-      .where(dailyConditions)
-      .groupBy(sql`DATE(${charges.paidAt})`);
+        const dailyConditions = campusFilter
+          ? and(eq(charges.status, "paid"), gte(charges.paidAt, thirtyDaysAgo), campusFilter)
+          : and(eq(charges.status, "paid"), gte(charges.paidAt, thirtyDaysAgo));
+
+        return db
+          .select({
+            date: sql<string>`DATE(${charges.paidAt})`,
+            amount: sql<number>`COALESCE(SUM(CAST(COALESCE(${charges.paidAmount}, ${charges.amount}) AS NUMERIC)), 0)`,
+          })
+          .from(charges)
+          .where(dailyConditions)
+          .groupBy(sql`DATE(${charges.paidAt})`);
+      })(),
+
+      // Status counts for default rate
+      (async () => {
+        const statusQuery = db
+          .select({
+            status: charges.status,
+            count: sql<number>`COUNT(*)`,
+          })
+          .from(charges);
+        return campusFilter
+          ? statusQuery.where(campusFilter).groupBy(charges.status)
+          : statusQuery.groupBy(charges.status);
+      })()
+    ]);
+
+    const totalBilled = billedResult[0]?.total || 0;
+    const totalReceived = receivedResult[0]?.total || 0;
+    const totalPending = pendingResult[0]?.total || 0;
+    const totalOverdue = overdueResult[0]?.total || 0;
+    const paymentsToday = todayResult[0]?.count || 0;
 
     // Create a map of date -> amount
     const receiptsMap = new Map<string, number>();
@@ -310,17 +337,6 @@ export class DbStorage implements IStorage {
         amount: receiptsMap.get(dateStr) || 0,
       });
     }
-
-    // Status counts for default rate
-    const statusQuery = db
-      .select({
-        status: charges.status,
-        count: sql<number>`COUNT(*)`,
-      })
-      .from(charges);
-    const statusCounts = campusFilter
-      ? await statusQuery.where(campusFilter).groupBy(charges.status)
-      : await statusQuery.groupBy(charges.status);
 
     let paidCount = 0;
     let overdueCount = 0;
@@ -425,7 +441,7 @@ export class DbStorage implements IStorage {
   async deleteGuardian(id: string): Promise<boolean> {
     // First delete all student-guardian relationships
     await db.delete(studentGuardians).where(eq(studentGuardians.guardianId, id));
-    
+
     // Then delete the guardian
     const result = await db.delete(guardians).where(eq(guardians.id, id));
     return result.rowCount !== null && result.rowCount > 0;
