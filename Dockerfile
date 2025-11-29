@@ -7,7 +7,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Instalar todas as dependências (incluindo devDependencies para o build)
-RUN npm ci
+RUN npm install
 
 # Copiar o código fonte
 COPY . .
@@ -24,7 +24,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Instalar apenas dependências de produção
-RUN npm ci --omit=dev
+RUN npm install --omit=dev
 
 # Copiar os artefatos construídos do estágio anterior
 COPY --from=builder /app/dist ./dist
