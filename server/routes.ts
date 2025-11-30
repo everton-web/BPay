@@ -491,6 +491,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         settings['mercado_pago_status'] = 'inactive';
       }
 
+      // Check environment variables for Resend
+      if (process.env.RESEND_API_KEY) {
+        settings['resend_status'] = 'active';
+      } else {
+        settings['resend_status'] = 'inactive';
+      }
+
       res.json(settings);
     } catch (error) {
       console.error("Error fetching settings:", error);
