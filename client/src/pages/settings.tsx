@@ -111,7 +111,7 @@ export default function Settings() {
                                         <Shield className="h-5 w-5" />
                                         <div>
                                             <p className="font-medium">Integração não configurada</p>
-                                            <p className="text-sm opacity-90">Adicione as chaves no arquivo .env para ativar.</p>
+                                            <p className="text-sm opacity-90">Entre em contato com o suporte técnico para ativar.</p>
                                         </div>
                                     </div>
                                 )}
@@ -122,7 +122,7 @@ export default function Settings() {
                                         <Input
                                             id="payment_gateway_key"
                                             name="payment_gateway_key"
-                                            defaultValue={settings?.payment_gateway_key || "Configurado via .env"}
+                                            defaultValue={settings?.payment_gateway_key || "Configurado pelo Admin"}
                                             placeholder="ex: pk_test_..."
                                             type="text"
                                         />
@@ -154,7 +154,7 @@ export default function Settings() {
                                     </div>
                                 </form>
                                 <p className="text-xs text-muted-foreground text-center">
-                                    Nota: As credenciais são gerenciadas via variáveis de ambiente (.env) por segurança.
+                                    Nota: As credenciais são gerenciadas pelo administrador do sistema por segurança.
                                 </p>
                             </div>
                         </CardContent>
