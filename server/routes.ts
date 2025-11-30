@@ -22,7 +22,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(campuses);
     } catch (error) {
       console.error("Error fetching campuses:", error);
-      res.status(500).json({ error: "Failed to fetch campuses" });
+      res.status(500).json({ error: "Falha ao buscar sedes" });
     }
   });
 
@@ -33,7 +33,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(students);
     } catch (error) {
       console.error("Error fetching students:", error);
-      res.status(500).json({ error: "Failed to fetch students" });
+      res.status(500).json({ error: "Falha ao buscar estudantes" });
     }
   });
 
@@ -69,10 +69,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(student);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        res.status(400).json({ error: "Validation error", details: error.errors });
+        res.status(400).json({ error: "Erro de validação", details: error.errors });
       } else {
         console.error("Error creating student:", error);
-        res.status(500).json({ error: "Failed to create student" });
+        res.status(500).json({ error: "Falha ao criar estudante" });
       }
     }
   });
@@ -81,13 +81,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { ids } = bulkDeleteStudentsSchema.parse(req.body);
       await storage.deleteStudents(ids);
-      res.status(200).json({ success: true, message: "Students deleted successfully" });
+      res.status(200).json({ success: true, message: "Estudantes excluídos com sucesso" });
     } catch (error) {
       if (error instanceof z.ZodError) {
-        res.status(400).json({ error: "Validation error", details: error.errors });
+        res.status(400).json({ error: "Erro de validação", details: error.errors });
       } else {
         console.error("Error deleting students:", error);
-        res.status(500).json({ error: "Failed to delete students" });
+        res.status(500).json({ error: "Falha ao excluir estudantes" });
       }
     }
   });
@@ -99,17 +99,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updatedStudent = await storage.updateStudent(id, validatedData);
 
       if (!updatedStudent) {
-        res.status(404).json({ error: "Student not found" });
+        res.status(404).json({ error: "Estudante não encontrado" });
         return;
       }
 
       res.json(updatedStudent);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        res.status(400).json({ error: "Validation error", details: error.errors });
+        res.status(400).json({ error: "Erro de validação", details: error.errors });
       } else {
         console.error("Error updating student:", error);
-        res.status(500).json({ error: "Failed to update student" });
+        res.status(500).json({ error: "Falha ao atualizar estudante" });
       }
     }
   });
@@ -143,7 +143,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(charges);
     } catch (error) {
       console.error("Error fetching charges:", error);
-      res.status(500).json({ error: "Failed to fetch charges" });
+      res.status(500).json({ error: "Falha ao buscar cobranças" });
     }
   });
 
@@ -154,10 +154,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(charge);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        res.status(400).json({ error: "Validation error", details: error.errors });
+        res.status(400).json({ error: "Erro de validação", details: error.errors });
       } else {
         console.error("Error creating charge:", error);
-        res.status(500).json({ error: "Failed to create charge" });
+        res.status(500).json({ error: "Falha ao criar cobrança" });
       }
     }
   });
@@ -168,16 +168,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { chargeId } = req.body;
 
       if (!chargeId) {
-        return res.status(400).json({ error: "chargeId is required" });
+        return res.status(400).json({ error: "chargeId é obrigatório" });
       }
 
       const charge = await storage.getCharge(chargeId);
       if (!charge) {
-        return res.status(404).json({ error: "Charge not found" });
+        return res.status(404).json({ error: "Cobrança não encontrada" });
       }
 
       if (charge.status === "paid") {
-        return res.status(400).json({ error: "Charge already paid" });
+        return res.status(400).json({ error: "Cobrança já paga" });
       }
 
       // Update charge status to paid
@@ -190,12 +190,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({
         success: true,
-        message: "Payment confirmed",
+        message: "Pagamento confirmado",
         charge: updatedCharge,
       });
     } catch (error) {
       console.error("Error processing webhook:", error);
-      res.status(500).json({ error: "Failed to process payment" });
+      res.status(500).json({ error: "Falha ao processar pagamento" });
     }
   });
 
@@ -209,7 +209,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(metrics);
     } catch (error) {
       console.error("Error fetching dashboard metrics:", error);
-      res.status(500).json({ error: "Failed to fetch metrics" });
+      res.status(500).json({ error: "Falha ao buscar métricas" });
     }
   });
 
@@ -222,7 +222,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(monthlyReceipts);
     } catch (error) {
       console.error("Error fetching monthly receipts:", error);
-      res.status(500).json({ error: "Failed to fetch monthly receipts" });
+      res.status(500).json({ error: "Falha ao buscar recebimentos mensais" });
     }
   });
 
@@ -287,7 +287,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ csv });
     } catch (error) {
       console.error("Error exporting charges:", error);
-      res.status(500).json({ error: "Failed to export charges" });
+      res.status(500).json({ error: "Falha ao exportar cobranças" });
     }
   });
 
@@ -312,10 +312,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
-        res.status(400).json({ error: "Validation error", details: error.errors });
+        res.status(400).json({ error: "Erro de validação", details: error.errors });
       } else {
         console.error("Error generating recurring charges:", error);
-        res.status(500).json({ error: "Failed to generate recurring charges" });
+        res.status(500).json({ error: "Falha ao gerar cobranças recorrentes" });
       }
     }
   });
@@ -327,7 +327,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(logs);
     } catch (error) {
       console.error("Error fetching generation logs:", error);
-      res.status(500).json({ error: "Failed to fetch generation logs" });
+      res.status(500).json({ error: "Falha ao buscar logs de geração" });
     }
   });
 
@@ -338,7 +338,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(guardians);
     } catch (error) {
       console.error("Error fetching guardians:", error);
-      res.status(500).json({ error: "Failed to fetch guardians" });
+      res.status(500).json({ error: "Falha ao buscar responsáveis" });
     }
   });
 
@@ -346,13 +346,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const guardian = await storage.getGuardian(req.params.id);
       if (!guardian) {
-        res.status(404).json({ error: "Guardian not found" });
+        res.status(404).json({ error: "Responsável não encontrado" });
         return;
       }
       res.json(guardian);
     } catch (error) {
       console.error("Error fetching guardian:", error);
-      res.status(500).json({ error: "Failed to fetch guardian" });
+      res.status(500).json({ error: "Falha ao buscar responsável" });
     }
   });
 
@@ -363,10 +363,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(guardian);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        res.status(400).json({ error: "Validation error", details: error.errors });
+        res.status(400).json({ error: "Erro de validação", details: error.errors });
       } else {
         console.error("Error creating guardian:", error);
-        res.status(500).json({ error: "Failed to create guardian" });
+        res.status(500).json({ error: "Falha ao criar responsável" });
       }
     }
   });
@@ -375,7 +375,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Validate empty payload
       if (!req.body || Object.keys(req.body).length === 0) {
-        res.status(400).json({ error: "At least one field must be provided for update" });
+        res.status(400).json({ error: "Pelo menos um campo deve ser fornecido para atualização" });
         return;
       }
 
@@ -383,22 +383,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Double check that at least one field was actually provided after validation
       if (Object.keys(validatedData).length === 0) {
-        res.status(400).json({ error: "At least one valid field must be provided for update" });
+        res.status(400).json({ error: "Pelo menos um campo válido deve ser fornecido para atualização" });
         return;
       }
 
       const guardian = await storage.updateGuardian(req.params.id, validatedData);
       if (!guardian) {
-        res.status(404).json({ error: "Guardian not found" });
+        res.status(404).json({ error: "Responsável não encontrado" });
         return;
       }
       res.json(guardian);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        res.status(400).json({ error: "Validation error", details: error.errors });
+        res.status(400).json({ error: "Erro de validação", details: error.errors });
       } else {
         console.error("Error updating guardian:", error);
-        res.status(500).json({ error: "Failed to update guardian" });
+        res.status(500).json({ error: "Falha ao atualizar responsável" });
       }
     }
   });
@@ -407,13 +407,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const success = await storage.deleteGuardian(req.params.id);
       if (!success) {
-        res.status(404).json({ error: "Guardian not found" });
+        res.status(404).json({ error: "Responsável não encontrado" });
         return;
       }
       res.status(204).send();
     } catch (error) {
       console.error("Error deleting guardian:", error);
-      res.status(500).json({ error: "Failed to delete guardian" });
+      res.status(500).json({ error: "Falha ao excluir responsável" });
     }
   });
 
@@ -424,7 +424,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(guardians);
     } catch (error) {
       console.error("Error fetching student guardians:", error);
-      res.status(500).json({ error: "Failed to fetch student guardians" });
+      res.status(500).json({ error: "Falha ao buscar responsáveis do estudante" });
     }
   });
 
@@ -434,7 +434,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(students);
     } catch (error) {
       console.error("Error fetching guardian students:", error);
-      res.status(500).json({ error: "Failed to fetch guardian students" });
+      res.status(500).json({ error: "Falha ao buscar estudantes do responsável" });
     }
   });
 
@@ -449,7 +449,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
 
       if (existing) {
-        res.status(400).json({ error: "Relationship already exists" });
+        res.status(400).json({ error: "Relacionamento já existe" });
         return;
       }
 
@@ -457,10 +457,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(relationship);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        res.status(400).json({ error: "Validation error", details: error.errors });
+        res.status(400).json({ error: "Erro de validação", details: error.errors });
       } else {
         console.error("Error creating student-guardian relationship:", error);
-        res.status(500).json({ error: "Failed to create relationship" });
+        res.status(500).json({ error: "Falha ao criar relacionamento" });
       }
     }
   });
@@ -469,12 +469,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const success = await storage.dissociateStudentGuardian(req.params.id);
       if (!success) {
-        res.status(404).json({ error: "Relationship not found" });
+        res.status(404).json({ error: "Relacionamento não encontrado" });
         return;
       }
       res.status(204).send();
     } catch (error) {
-      res.status(500).json({ error: "Failed to delete relationship" });
+      res.status(500).json({ error: "Falha ao excluir relacionamento" });
     }
   });
 
@@ -486,7 +486,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(settings);
     } catch (error) {
       console.error("Error fetching settings:", error);
-      res.status(500).json({ error: "Failed to fetch settings" });
+      res.status(500).json({ error: "Falha ao buscar configurações" });
     }
   });
 
@@ -510,10 +510,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updatedSettings);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        res.status(400).json({ error: "Validation error", details: error.errors });
+        res.status(400).json({ error: "Erro de validação", details: error.errors });
       } else {
         console.error("Error updating settings:", error);
-        res.status(500).json({ error: "Failed to update settings" });
+        res.status(500).json({ error: "Falha ao atualizar configurações" });
       }
     }
   });

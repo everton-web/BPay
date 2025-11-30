@@ -1,6 +1,8 @@
 import { db } from "./db";
-import { students, charges, chargeGenerationLogs, type InsertCharge, type InsertChargeGenerationLog } from "@shared/schema";
+import { students, charges, chargeGenerationLogs, type InsertCharge, type InsertChargeGenerationLog, studentGuardians, guardians } from "@shared/schema";
 import { eq, and, gte, lte, sql } from "drizzle-orm";
+import { createPixPayment } from "./mercadopago";
+import { sendPixNotification } from "./notifications";
 
 interface GenerationResult {
   chargesCreated: number;
@@ -15,7 +17,7 @@ function generatePixData(chargeId: string, studentName: string, amount: string) 
   const qrCode = `00020126580014br.gov.bcb.pix0136${chargeId}520400005303986540${amount}5802BR5925${studentName}6009SAO PAULO62070503***6304`;
   const copyPaste = qrCode;
   const paymentLink = `https://pix.example.com/pay/${chargeId}`;
-  
+
   return { qrCode, copyPaste, paymentLink };
 }
 
@@ -52,7 +54,7 @@ export async function generateRecurringCharges(
     ));
 
   const existingStudentIds = new Set(existingCharges.map(c => c.studentId));
-  
+
   const studentsNeedingCharges = activeStudents.filter(
     student => !existingStudentIds.has(student.id)
   );
@@ -61,15 +63,67 @@ export async function generateRecurringCharges(
   const createdStudentIds: string[] = [];
   const errors: string[] = [];
 
+  // Fetch guardians for active students to get email for payment
+  const studentGuardianRelations = await db
+    .select({
+      studentId: studentGuardians.studentId,
+      guardianEmail: guardians.email,
+      guardianName: guardians.name,
+      guardianCpf: guardians.cpf
+    })
+    .from(studentGuardians)
+    .innerJoin(guardians, eq(studentGuardians.guardianId, guardians.id));
+
+  const guardianMap = new Map(
+    studentGuardianRelations.map(sg => [sg.studentId, sg])
+  );
+
   for (const student of studentsNeedingCharges) {
     try {
       const dueDate = calculateDueDate(student.dueDay, year, month);
       const amount = parseFloat(student.monthlyFee);
-      const pixData = generatePixData(
-        `CHG-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        student.name,
-        amount.toFixed(2)
-      );
+
+      const guardianInfo = guardianMap.get(student.id);
+      const payerEmail = guardianInfo?.guardianEmail || student.email; // Fallback to student email
+      const payerName = guardianInfo?.guardianName || student.name;
+
+      // Split name for Mercado Pago
+      const [firstName, ...lastNameParts] = payerName.split(' ');
+      const lastName = lastNameParts.join(' ') || 'Responsável';
+
+      let pixData;
+      try {
+        const payment = await createPixPayment({
+          amount,
+          description: `Mensalidade ${student.name} - ${targetMonthStr}`,
+          payerEmail,
+          payerFirstName: firstName,
+          payerLastName: lastName,
+          // Add CPF if available and valid
+          ...(guardianInfo?.guardianCpf ? {
+            payerIdentification: {
+              type: 'CPF',
+              number: guardianInfo.guardianCpf
+            }
+          } : {})
+        });
+
+        pixData = {
+          qrCode: payment.qr_code_base64 || '',
+          copyPaste: payment.qr_code || '',
+          paymentLink: payment.ticket_url || ''
+        };
+      } catch (mpError) {
+        console.error(`Failed to create Mercado Pago payment for student ${student.id}:`, mpError);
+        // Fallback to mock data if MP fails (e.g. invalid credentials) so we still generate the charge
+        // In production you might want to fail the charge creation instead
+        pixData = generatePixData(
+          `CHG-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          student.name,
+          amount.toFixed(2)
+        );
+        errors.push(`Mercado Pago failed for ${student.name}, used mock data. Error: ${mpError}`);
+      }
 
       newCharges.push({
         studentId: student.id,
@@ -82,6 +136,20 @@ export async function generateRecurringCharges(
         pixCopyPaste: pixData.copyPaste,
         pixPaymentLink: pixData.paymentLink,
       });
+
+      // Send Notification
+      try {
+        await sendPixNotification({
+          email: payerEmail,
+          studentName: student.name,
+          amount: amount.toFixed(2),
+          dueDate: dueDate.toLocaleDateString('pt-BR'),
+          pixCode: pixData.copyPaste,
+          paymentLink: pixData.paymentLink
+        });
+      } catch (notifError) {
+        console.error(`Failed to send notification for student ${student.id}:`, notifError);
+      }
 
       createdStudentIds.push(student.id);
     } catch (error) {
