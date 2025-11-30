@@ -37,10 +37,10 @@ import {
 import { Plus, UserCheck, Mail, Phone, FileText, Users, Trash2, Link as LinkIcon, Pencil } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { 
-  insertGuardianSchema, 
+import {
+  insertGuardianSchema,
   insertStudentGuardianSchema,
-  type InsertGuardian, 
+  type InsertGuardian,
   type Guardian,
   type Student,
   type InsertStudentGuardian,
@@ -118,8 +118,8 @@ export default function Guardians() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        predicate: (query) => 
-          Array.isArray(query.queryKey) && 
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
           query.queryKey[0] === "/api/guardians"
       });
       toast({
@@ -146,8 +146,8 @@ export default function Guardians() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        predicate: (query) => 
-          Array.isArray(query.queryKey) && 
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
           query.queryKey[0] === "/api/guardians"
       });
       toast({
@@ -173,8 +173,8 @@ export default function Guardians() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        predicate: (query) => 
-          Array.isArray(query.queryKey) && 
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
           (query.queryKey[0] === "/api/guardians" || query.queryKey[0] === "/api/students")
       });
       toast({
@@ -199,8 +199,8 @@ export default function Guardians() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        predicate: (query) => 
-          Array.isArray(query.queryKey) && 
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
           (query.queryKey[0] === "/api/guardians" || query.queryKey[0] === "/api/students")
       });
       toast({
@@ -223,8 +223,8 @@ export default function Guardians() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        predicate: (query) => 
-          Array.isArray(query.queryKey) && 
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
           query.queryKey[0] === "/api/guardians"
       });
       toast({
@@ -281,8 +281,8 @@ export default function Guardians() {
             Gerencie os responsáveis pelos estudantes
           </p>
         </div>
-        <Dialog 
-          open={isCreateDialogOpen} 
+        <Dialog
+          open={isCreateDialogOpen}
           onOpenChange={(open) => {
             setIsCreateDialogOpen(open);
             if (!open) {
@@ -302,7 +302,7 @@ export default function Guardians() {
                 {editingGuardian ? "Editar Responsável" : "Cadastrar Responsável"}
               </DialogTitle>
               <DialogDescription>
-                {editingGuardian 
+                {editingGuardian
                   ? "Atualize os dados do responsável pelo estudante"
                   : "Preencha os dados do responsável pelo estudante"
                 }
@@ -412,7 +412,7 @@ export default function Guardians() {
                     disabled={createMutation.isPending || updateMutation.isPending}
                     data-testid="button-submit-guardian"
                   >
-                    {editingGuardian 
+                    {editingGuardian
                       ? (updateMutation.isPending ? "Salvando..." : "Salvar Alterações")
                       : (createMutation.isPending ? "Cadastrando..." : "Cadastrar")
                     }
@@ -439,75 +439,77 @@ export default function Guardians() {
               ))}
             </div>
           ) : guardians && guardians.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>CPF</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Telefone</TableHead>
-                  <TableHead className="text-center">Ações</TableHead>
-                  <TableHead className="text-right">Estudantes</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {guardians.map((guardian) => (
-                  <TableRow key={guardian.id} data-testid={`row-guardian-${guardian.id}`}>
-                    <TableCell className="font-medium" data-testid={`text-guardian-name-${guardian.id}`}>
-                      {guardian.name}
-                    </TableCell>
-                    <TableCell data-testid={`text-guardian-cpf-${guardian.id}`}>
-                      {formatCPF(guardian.cpf)}
-                    </TableCell>
-                    <TableCell data-testid={`text-guardian-email-${guardian.id}`}>
-                      {guardian.email}
-                    </TableCell>
-                    <TableCell data-testid={`text-guardian-phone-${guardian.id}`}>
-                      {formatPhone(guardian.phone)}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <div className="flex justify-center gap-2">
+            <div className="rounded-md border overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>CPF</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Telefone</TableHead>
+                    <TableHead className="text-center">Ações</TableHead>
+                    <TableHead className="text-right">Estudantes</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {guardians.map((guardian) => (
+                    <TableRow key={guardian.id} data-testid={`row-guardian-${guardian.id}`}>
+                      <TableCell className="font-medium" data-testid={`text-guardian-name-${guardian.id}`}>
+                        {guardian.name}
+                      </TableCell>
+                      <TableCell data-testid={`text-guardian-cpf-${guardian.id}`}>
+                        {formatCPF(guardian.cpf)}
+                      </TableCell>
+                      <TableCell data-testid={`text-guardian-email-${guardian.id}`}>
+                        {guardian.email}
+                      </TableCell>
+                      <TableCell data-testid={`text-guardian-phone-${guardian.id}`}>
+                        {formatPhone(guardian.phone)}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex justify-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEdit(guardian)}
+                            data-testid={`button-edit-guardian-${guardian.id}`}
+                          >
+                            <Pencil className="h-4 w-4 mr-1" />
+                            Editar
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => {
+                              if (confirm("Tem certeza que deseja excluir este responsável?")) {
+                                deleteMutation.mutate(guardian.id);
+                              }
+                            }}
+                            data-testid={`button-delete-guardian-${guardian.id}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleEdit(guardian)}
-                          data-testid={`button-edit-guardian-${guardian.id}`}
-                        >
-                          <Pencil className="h-4 w-4 mr-1" />
-                          Editar
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
                           onClick={() => {
-                            if (confirm("Tem certeza que deseja excluir este responsável?")) {
-                              deleteMutation.mutate(guardian.id);
-                            }
+                            setSelectedGuardianId(guardian.id);
+                            setIsLinkDialogOpen(true);
                           }}
-                          data-testid={`button-delete-guardian-${guardian.id}`}
+                          data-testid={`button-link-students-${guardian.id}`}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <LinkIcon className="h-4 w-4 mr-1" />
+                          Estudantes
                         </Button>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedGuardianId(guardian.id);
-                          setIsLinkDialogOpen(true);
-                        }}
-                        data-testid={`button-link-students-${guardian.id}`}
-                      >
-                        <LinkIcon className="h-4 w-4 mr-1" />
-                        Estudantes
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           ) : (
             <div className="text-center py-12 text-muted-foreground">
               <UserCheck className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -529,7 +531,7 @@ export default function Guardians() {
               Adicione ou remova estudantes vinculados a este responsável
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4">
             {/* Form to add new student */}
             <Card>

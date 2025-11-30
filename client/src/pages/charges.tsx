@@ -81,7 +81,7 @@ export default function Charges() {
   const exportMutation = useMutation({
     mutationFn: async () => {
       const response = await apiRequest("GET", "/api/charges/export");
-      return response;
+      return await response.json();
     },
     onSuccess: (data) => {
       // Create CSV and download
@@ -94,7 +94,7 @@ export default function Charges() {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-      
+
       toast({
         title: "Relatório exportado!",
         description: "O arquivo CSV foi baixado com sucesso.",
@@ -104,7 +104,8 @@ export default function Charges() {
 
   const generateMutation = useMutation({
     mutationFn: async (data: { targetMonth: string }) => {
-      return await apiRequest("POST", "/api/charges/generate-recurring", data);
+      const res = await apiRequest("POST", "/api/charges/generate-recurring", data);
+      return await res.json();
     },
     onSuccess: (data) => {
       toast({
@@ -234,7 +235,7 @@ export default function Charges() {
               ))}
             </div>
           ) : filteredCharges && filteredCharges.length > 0 ? (
-            <div className="rounded-md border">
+            <div className="rounded-md border overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>

@@ -270,14 +270,14 @@ export default function Students() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold">Estudantes</h1>
           <p className="text-muted-foreground mt-1">
             Gerencie os estudantes e suas mensalidades
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           {selectedIds.length > 0 && (
             <Button
               variant="destructive"
@@ -549,7 +549,7 @@ export default function Students() {
               ))}
             </div>
           ) : students && students.length > 0 ? (
-            <div className="rounded-md border">
+            <div className="rounded-md border overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -647,7 +647,7 @@ export default function Students() {
             </div>
           )}
         </CardContent>
-      </Card>
+      </Card >
 
       <Sheet open={!!viewingStudent} onOpenChange={(open) => !open && setViewingStudent(null)}>
         <SheetContent className="w-[400px] sm:w-[540px]">
@@ -743,6 +743,6 @@ export default function Students() {
           )}
         </SheetContent>
       </Sheet>
-    </div>
+    </div >
   );
 }
