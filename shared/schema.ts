@@ -226,7 +226,7 @@ export type SystemSetting = typeof systemSettings.$inferSelect;
 export const insertStudentWithGuardianSchema = insertStudentSchema.extend({
   guardian: insertGuardianSchema.extend({
     relationship: z.string().min(1, "Relacionamento é obrigatório")
-  }).optional()
+  })
 });
 
 export type InsertStudentWithGuardian = z.infer<typeof insertStudentWithGuardianSchema>;
