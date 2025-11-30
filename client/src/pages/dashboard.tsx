@@ -34,7 +34,7 @@ import type { DashboardMetrics } from "@shared/schema";
 import { Skeleton } from "@/components/ui/skeleton";
 
 type ViewMode = "daily" | "monthly";
-type CampusFilter = "all" | "Vilas do Atlântico" | "Bonfim";
+type CampusFilter = string;
 
 type MonthlyReceipt = {
   month: string;
@@ -45,6 +45,10 @@ type MonthlyReceipt = {
 export default function Dashboard() {
   const [viewMode, setViewMode] = useState<ViewMode>("daily");
   const [campusFilter, setCampusFilter] = useState<CampusFilter>("all");
+
+  const { data: campuses } = useQuery<any[]>({
+    queryKey: ["/api/campuses"],
+  });
 
   const { data: metrics, isLoading } = useQuery<DashboardMetrics>({
     queryKey: ["/api/dashboard/metrics", campusFilter],
@@ -88,10 +92,10 @@ export default function Dashboard() {
 
   const pieData = metrics
     ? [
-        { name: "Pagos", value: metrics.defaultRate.paid, color: "hsl(142 76% 36%)" },
-        { name: "Atrasados", value: metrics.defaultRate.overdue, color: "hsl(0 84% 42%)" },
-        { name: "Em Aberto", value: metrics.defaultRate.pending, color: "hsl(45 93% 47%)" },
-      ]
+      { name: "Pagos", value: metrics.defaultRate.paid, color: "hsl(142 76% 36%)" },
+      { name: "Atrasados", value: metrics.defaultRate.overdue, color: "hsl(0 84% 42%)" },
+      { name: "Em Aberto", value: metrics.defaultRate.pending, color: "hsl(45 93% 47%)" },
+    ]
     : [];
 
   return (
@@ -112,12 +116,11 @@ export default function Dashboard() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all" data-testid="option-campus-all">Geral (Todas)</SelectItem>
-            <SelectItem value="Bonfim" data-testid="option-campus-bonfim">
-              Bonfim
-            </SelectItem>
-            <SelectItem value="Vilas do Atlântico" data-testid="option-campus-vilas">
-              Vilas do Atlântico
-            </SelectItem>
+            {campuses?.map((campus) => (
+              <SelectItem key={campus.id} value={campus.name}>
+                {campus.name}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
