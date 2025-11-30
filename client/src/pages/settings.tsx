@@ -93,51 +93,70 @@ export default function Settings() {
                         <CardHeader>
                             <CardTitle>Integração de Pagamento</CardTitle>
                             <CardDescription>
-                                Configure as chaves de API do seu gateway de pagamento (ex: Asaas, Mercado Pago).
+                                Configure as chaves de API do seu gateway de pagamento.
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <form onSubmit={handleSavePayment} className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="payment_gateway_key">Chave de API (Public Key)</Label>
-                                    <Input
-                                        id="payment_gateway_key"
-                                        name="payment_gateway_key"
-                                        defaultValue={settings?.payment_gateway_key || ""}
-                                        placeholder="ex: pk_test_..."
-                                        type="password"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="payment_gateway_secret">Chave Secreta (Secret Key)</Label>
-                                    <Input
-                                        id="payment_gateway_secret"
-                                        name="payment_gateway_secret"
-                                        defaultValue={settings?.payment_gateway_secret || ""}
-                                        placeholder="ex: sk_test_..."
-                                        type="password"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="webhook_url">URL do Webhook</Label>
-                                    <Input
-                                        id="webhook_url"
-                                        name="webhook_url"
-                                        defaultValue={settings?.webhook_url || ""}
-                                        placeholder="https://seu-dominio.com/api/webhook/payment"
-                                    />
-                                    <p className="text-xs text-muted-foreground">
-                                        Configure esta URL no painel do seu gateway para receber notificações de pagamento.
-                                    </p>
-                                </div>
-                                <div className="pt-4">
-                                    <Button type="submit" disabled={saveMutation.isPending}>
-                                        {saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                        <Save className="mr-2 h-4 w-4" />
-                                        Salvar Configurações
-                                    </Button>
-                                </div>
-                            </form>
+                            <div className="space-y-6">
+                                {settings?.mercado_pago_status === 'active' ? (
+                                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-3 text-green-800">
+                                        <Shield className="h-5 w-5" />
+                                        <div>
+                                            <p className="font-medium">Integração com Mercado Pago Ativa</p>
+                                            <p className="text-sm opacity-90">O sistema está pronto para processar pagamentos via Pix.</p>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-center gap-3 text-yellow-800">
+                                        <Shield className="h-5 w-5" />
+                                        <div>
+                                            <p className="font-medium">Integração não configurada</p>
+                                            <p className="text-sm opacity-90">Adicione as chaves no arquivo .env para ativar.</p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <form onSubmit={handleSavePayment} className="space-y-4 opacity-50 pointer-events-none">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="payment_gateway_key">Chave de API (Public Key)</Label>
+                                        <Input
+                                            id="payment_gateway_key"
+                                            name="payment_gateway_key"
+                                            defaultValue={settings?.payment_gateway_key || "Configurado via .env"}
+                                            placeholder="ex: pk_test_..."
+                                            type="text"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="payment_gateway_secret">Chave Secreta (Secret Key)</Label>
+                                        <Input
+                                            id="payment_gateway_secret"
+                                            name="payment_gateway_secret"
+                                            defaultValue={settings?.payment_gateway_secret || "••••••••••••••••"}
+                                            placeholder="ex: sk_test_..."
+                                            type="password"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="webhook_url">URL do Webhook</Label>
+                                        <Input
+                                            id="webhook_url"
+                                            name="webhook_url"
+                                            defaultValue={settings?.webhook_url || ""}
+                                            placeholder="https://seu-dominio.com/api/webhook/payment"
+                                        />
+                                    </div>
+                                    <div className="pt-4">
+                                        <Button type="submit" disabled>
+                                            <Save className="mr-2 h-4 w-4" />
+                                            Salvar Configurações
+                                        </Button>
+                                    </div>
+                                </form>
+                                <p className="text-xs text-muted-foreground text-center">
+                                    Nota: As credenciais são gerenciadas via variáveis de ambiente (.env) por segurança.
+                                </p>
+                            </div>
                         </CardContent>
                     </Card>
                 </TabsContent>

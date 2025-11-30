@@ -479,10 +479,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // System Settings
+  // System Settings
   app.get("/api/settings", async (_req, res) => {
     try {
       const settings = await storage.getSystemSettings();
-      // Mask sensitive data if needed, but for now sending as is since it's admin only
+
+      // Check environment variables for Mercado Pago
+      if (process.env.MERCADO_PAGO_ACCESS_TOKEN) {
+        settings['mercado_pago_status'] = 'active';
+      } else {
+        settings['mercado_pago_status'] = 'inactive';
+      }
+
       res.json(settings);
     } catch (error) {
       console.error("Error fetching settings:", error);
