@@ -18,6 +18,13 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
+import {
   Form,
   FormControl,
   FormField,
@@ -33,18 +40,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, User, Mail, Phone, GraduationCap, Pencil } from "lucide-react";
+import { Plus, User, Mail, Phone, GraduationCap, Pencil, Trash2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertStudentSchema, type InsertStudent, type Student, type Campus } from "@shared/schema";
+import { insertStudentWithGuardianSchema, type InsertStudentWithGuardian, type Student, type Campus, type Guardian } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Separator } from "@/components/ui/separator";
 
 export default function Students() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [viewingStudent, setViewingStudent] = useState<Student | null>(null);
   const { toast } = useToast();
 
   const { data: students, isLoading: isLoadingStudents } = useQuery<Student[]>({
@@ -55,10 +66,14 @@ export default function Students() {
     queryKey: ["/api/campuses"],
   });
 
-  console.log("Campuses data:", campuses);
+  // Fetch guardians for the viewing student
+  const { data: guardians } = useQuery<Guardian[]>({
+    queryKey: ["/api/students", viewingStudent?.id, "guardians"],
+    enabled: !!viewingStudent,
+  });
 
-  const form = useForm<InsertStudent>({
-    resolver: zodResolver(insertStudentSchema),
+  const form = useForm<InsertStudentWithGuardian>({
+    resolver: zodResolver(insertStudentWithGuardianSchema),
     defaultValues: {
       name: "",
       email: "",
@@ -72,28 +87,13 @@ export default function Students() {
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data: InsertStudent) => {
+    mutationFn: async (data: InsertStudentWithGuardian) => {
       return await apiRequest("POST", "/api/students", data);
     },
     onSuccess: () => {
-      // Invalidate all students queries
-      queryClient.invalidateQueries({
-        predicate: (query) =>
-          Array.isArray(query.queryKey) &&
-          query.queryKey[0] === "/api/students"
-      });
-      // Invalidate all charges queries (new student affects potential charges)
-      queryClient.invalidateQueries({
-        predicate: (query) =>
-          Array.isArray(query.queryKey) &&
-          query.queryKey[0] === "/api/charges"
-      });
-      // Invalidate dashboard metrics
-      queryClient.invalidateQueries({
-        predicate: (query) =>
-          Array.isArray(query.queryKey) &&
-          query.queryKey[0] === "/api/dashboard/metrics"
-      });
+      queryClient.invalidateQueries({ queryKey: ["/api/students"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/charges"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/metrics"] });
       toast({
         title: "Estudante cadastrado!",
         description: "O estudante foi cadastrado com sucesso.",
@@ -110,28 +110,13 @@ export default function Students() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Partial<InsertStudent> }) => {
+    mutationFn: async ({ id, data }: { id: string; data: Partial<InsertStudentWithGuardian> }) => {
       return await apiRequest("PATCH", `/api/students/${id}`, data);
     },
     onSuccess: () => {
-      // Invalidate all students queries
-      queryClient.invalidateQueries({
-        predicate: (query) =>
-          Array.isArray(query.queryKey) &&
-          query.queryKey[0] === "/api/students"
-      });
-      // Invalidate all charges queries (updated student might affect charges)
-      queryClient.invalidateQueries({
-        predicate: (query) =>
-          Array.isArray(query.queryKey) &&
-          query.queryKey[0] === "/api/charges"
-      });
-      // Invalidate dashboard metrics
-      queryClient.invalidateQueries({
-        predicate: (query) =>
-          Array.isArray(query.queryKey) &&
-          query.queryKey[0] === "/api/dashboard/metrics"
-      });
+      queryClient.invalidateQueries({ queryKey: ["/api/students"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/charges"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/metrics"] });
       toast({
         title: "Estudante atualizado!",
         description: "Os dados do estudante foram atualizados com sucesso.",
@@ -142,6 +127,27 @@ export default function Students() {
       toast({
         title: "Erro ao atualizar",
         description: "Ocorreu um erro ao atualizar o estudante.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      return await apiRequest("POST", "/api/students/bulk-delete", { ids });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/students"] });
+      setSelectedIds([]);
+      toast({
+        title: "Estudantes excluídos",
+        description: "Os estudantes selecionados foram excluídos com sucesso.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Erro ao excluir",
+        description: "Ocorreu um erro ao excluir os estudantes.",
         variant: "destructive",
       });
     },
@@ -173,7 +179,8 @@ export default function Students() {
     }
   }, [editingStudent, form]);
 
-  const handleEdit = (student: Student) => {
+  const handleEdit = (student: Student, e: React.MouseEvent) => {
+    e.stopPropagation();
     setEditingStudent(student);
     setIsDialogOpen(true);
   };
@@ -184,7 +191,7 @@ export default function Students() {
     form.reset();
   };
 
-  const onSubmit = (data: InsertStudent) => {
+  const onSubmit = (data: InsertStudentWithGuardian) => {
     const selectedCampus = campuses?.find((c) => c.id === data.campusId);
     if (selectedCampus) {
       const studentData = {
@@ -200,6 +207,28 @@ export default function Students() {
       } else {
         createMutation.mutate(studentData);
       }
+    }
+  };
+
+  const handleBulkDelete = () => {
+    if (confirm(`Tem certeza que deseja excluir ${selectedIds.length} estudantes? Esta ação não pode ser desfeita.`)) {
+      bulkDeleteMutation.mutate(selectedIds);
+    }
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === students?.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(students?.map(s => s.id) || []);
+    }
+  };
+
+  const toggleSelectStudent = (id: string) => {
+    if (selectedIds.includes(id)) {
+      setSelectedIds(selectedIds.filter(sid => sid !== id));
+    } else {
+      setSelectedIds([...selectedIds, id]);
     }
   };
 
@@ -219,177 +248,264 @@ export default function Students() {
             Gerencie os estudantes e suas mensalidades
           </p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={(open) => {
-          if (!open) handleCloseDialog();
-          else setIsDialogOpen(open);
-        }}>
-          <DialogTrigger asChild>
-            <Button data-testid="button-add-student">
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Estudante
+        <div className="flex gap-2">
+          {selectedIds.length > 0 && (
+            <Button
+              variant="destructive"
+              onClick={handleBulkDelete}
+              disabled={bulkDeleteMutation.isPending}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Excluir Selecionados ({selectedIds.length})
             </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>
-                {editingStudent ? "Editar Estudante" : "Cadastrar Novo Estudante"}
-              </DialogTitle>
-            </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Nome Completo *</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="João da Silva"
-                            {...field}
-                            data-testid="input-student-name"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email *</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="email"
-                            placeholder="joao@email.com"
-                            {...field}
-                            data-testid="input-student-email"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  <FormField
-                    control={form.control}
-                    name="phone"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Telefone *</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="(11) 99999-9999"
-                            {...field}
-                            data-testid="input-student-phone"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="campusId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Sede *</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                        >
+          )}
+          <Dialog open={isDialogOpen} onOpenChange={(open) => {
+            if (!open) handleCloseDialog();
+            else setIsDialogOpen(open);
+          }}>
+            <DialogTrigger asChild>
+              <Button data-testid="button-add-student">
+                <Plus className="h-4 w-4 mr-2" />
+                Novo Estudante
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>
+                  {editingStudent ? "Editar Estudante" : "Cadastrar Novo Estudante"}
+                </DialogTitle>
+              </DialogHeader>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <FormField
+                      control={form.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nome Completo *</FormLabel>
                           <FormControl>
-                            <SelectTrigger data-testid="select-campus">
-                              <SelectValue placeholder="Selecione uma sede" />
-                            </SelectTrigger>
+                            <Input
+                              placeholder="João da Silva"
+                              {...field}
+                              data-testid="input-student-name"
+                            />
                           </FormControl>
-                          <SelectContent>
-                            {campuses?.map((campus) => (
-                              <SelectItem key={campus.id} value={campus.id}>
-                                {campus.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email *</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="email"
+                              placeholder="joao@email.com"
+                              {...field}
+                              data-testid="input-student-email"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
 
-                <div className="grid gap-4 md:grid-cols-2">
-                  <FormField
-                    control={form.control}
-                    name="monthlyFee"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Mensalidade (R$) *</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            placeholder="450.00"
-                            {...field}
-                            data-testid="input-monthly-fee"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="dueDay"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Dia de Vencimento *</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            min={1}
-                            max={31}
-                            {...field}
-                            onChange={(e) => field.onChange(parseInt(e.target.value))}
-                            data-testid="input-due-day"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <FormField
+                      control={form.control}
+                      name="phone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Telefone *</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="(11) 99999-9999"
+                              {...field}
+                              data-testid="input-student-phone"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="campusId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Sede *</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger data-testid="select-campus">
+                                <SelectValue placeholder="Selecione uma sede" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {campuses?.map((campus) => (
+                                <SelectItem key={campus.id} value={campus.id}>
+                                  {campus.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
 
-                <div className="flex justify-end gap-2 pt-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleCloseDialog}
-                    data-testid="button-cancel"
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={createMutation.isPending || updateMutation.isPending}
-                    data-testid="button-save-student"
-                  >
-                    {createMutation.isPending || updateMutation.isPending
-                      ? "Salvando..."
-                      : editingStudent
-                        ? "Salvar Alterações"
-                        : "Cadastrar"}
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <FormField
+                      control={form.control}
+                      name="monthlyFee"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Mensalidade (R$) *</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              placeholder="450.00"
+                              {...field}
+                              data-testid="input-monthly-fee"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="dueDay"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Dia de Vencimento *</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min={1}
+                              max={31}
+                              {...field}
+                              onChange={(e) => field.onChange(parseInt(e.target.value))}
+                              data-testid="input-due-day"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="border-t pt-4 mt-4">
+                    <h3 className="font-semibold mb-4 flex items-center gap-2">
+                      <User className="h-4 w-4" />
+                      Dados do Responsável (Opcional)
+                    </h3>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <FormField
+                        control={form.control}
+                        name="guardian.name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Nome do Responsável</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Maria da Silva" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="guardian.relationship"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Parentesco</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Mãe, Pai, Avó..." {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="guardian.cpf"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>CPF</FormLabel>
+                            <FormControl>
+                              <Input placeholder="000.000.000-00" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="guardian.phone"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Telefone</FormLabel>
+                            <FormControl>
+                              <Input placeholder="(11) 99999-9999" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="guardian.email"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Email</FormLabel>
+                            <FormControl>
+                              <Input type="email" placeholder="responsavel@email.com" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleCloseDialog}
+                      data-testid="button-cancel"
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={createMutation.isPending || updateMutation.isPending}
+                      data-testid="button-save-student"
+                    >
+                      {createMutation.isPending || updateMutation.isPending
+                        ? "Salvando..."
+                        : editingStudent
+                          ? "Salvar Alterações"
+                          : "Cadastrar"}
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       <Card>
@@ -408,6 +524,12 @@ export default function Students() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[50px]">
+                      <Checkbox
+                        checked={selectedIds.length === students.length && students.length > 0}
+                        onCheckedChange={toggleSelectAll}
+                      />
+                    </TableHead>
                     <TableHead>Estudante</TableHead>
                     <TableHead>Sede</TableHead>
                     <TableHead>Contato</TableHead>
@@ -419,7 +541,18 @@ export default function Students() {
                 </TableHeader>
                 <TableBody>
                   {students.map((student) => (
-                    <TableRow key={student.id} data-testid={`row-student-${student.id}`}>
+                    <TableRow
+                      key={student.id}
+                      data-testid={`row-student-${student.id}`}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => setViewingStudent(student)}
+                    >
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={selectedIds.includes(student.id)}
+                          onCheckedChange={() => toggleSelectStudent(student.id)}
+                        />
+                      </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
@@ -459,7 +592,7 @@ export default function Students() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleEdit(student)}
+                          onClick={(e) => handleEdit(student, e)}
                           data-testid={`button-edit-student-${student.id}`}
                         >
                           <Pencil className="h-4 w-4 mr-2" />
@@ -486,6 +619,101 @@ export default function Students() {
           )}
         </CardContent>
       </Card>
+
+      <Sheet open={!!viewingStudent} onOpenChange={(open) => !open && setViewingStudent(null)}>
+        <SheetContent className="w-[400px] sm:w-[540px]">
+          <SheetHeader>
+            <SheetTitle>Detalhes do Estudante</SheetTitle>
+            <SheetDescription>
+              Informações completas do estudante e responsáveis.
+            </SheetDescription>
+          </SheetHeader>
+
+          {viewingStudent && (
+            <div className="mt-6 space-y-6">
+              <div>
+                <h3 className="text-sm font-medium text-muted-foreground mb-2">Dados Pessoais</h3>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-primary" />
+                    <span className="font-medium">{viewingStudent.name}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <span>{viewingStudent.email}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Phone className="h-4 w-4 text-muted-foreground" />
+                    <span>{viewingStudent.phone}</span>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div>
+                <h3 className="text-sm font-medium text-muted-foreground mb-2">Matrícula</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-xs text-muted-foreground">Sede</span>
+                    <div className="flex items-center gap-2 mt-1">
+                      <GraduationCap className="h-4 w-4 text-primary" />
+                      <span>{viewingStudent.campusName}</span>
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">Status</span>
+                    <div className="mt-1">
+                      <Badge variant={viewingStudent.status === "active" ? "default" : "secondary"}>
+                        {viewingStudent.status === "active" ? "Ativo" : "Inativo"}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">Mensalidade</span>
+                    <div className="font-medium mt-1">
+                      {formatCurrency(viewingStudent.monthlyFee)}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">Vencimento</span>
+                    <div className="mt-1">
+                      Dia {viewingStudent.dueDay}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div>
+                <h3 className="text-sm font-medium text-muted-foreground mb-2">Responsáveis</h3>
+                {guardians && guardians.length > 0 ? (
+                  <div className="space-y-4">
+                    {guardians.map((guardian) => (
+                      <div key={guardian.id} className="bg-muted/50 p-3 rounded-md">
+                        <div className="flex items-center gap-2 mb-2">
+                          <User className="h-4 w-4 text-primary" />
+                          <span className="font-medium">{guardian.name}</span>
+                        </div>
+                        <div className="space-y-1 text-sm text-muted-foreground">
+                          <div>CPF: {guardian.cpf}</div>
+                          <div>Tel: {guardian.phone}</div>
+                          <div>Email: {guardian.email}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">
+                    Nenhum responsável vinculado.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

@@ -33,7 +33,9 @@ export interface IStorage {
   getStudents(): Promise<Student[]>;
   getStudent(id: string): Promise<Student | undefined>;
   createStudent(student: InsertStudent): Promise<Student>;
+  createStudent(student: InsertStudent): Promise<Student>;
   updateStudent(id: string, student: UpdateStudent): Promise<Student | undefined>;
+  deleteStudents(ids: string[]): Promise<void>;
 
   // Charges
   getCharges(filters?: {
@@ -59,6 +61,7 @@ export interface IStorage {
   // Guardians
   getGuardians(): Promise<Guardian[]>;
   getGuardian(id: string): Promise<Guardian | undefined>;
+  getGuardianByCpf(cpf: string): Promise<Guardian | undefined>;
   createGuardian(guardian: InsertGuardian): Promise<Guardian>;
   updateGuardian(id: string, guardian: UpdateGuardian): Promise<Guardian | undefined>;
   deleteGuardian(id: string): Promise<boolean>;
@@ -119,6 +122,19 @@ export class DbStorage implements IStorage {
       .where(eq(students.id, id))
       .returning();
     return updatedStudent;
+  }
+
+  async deleteStudents(ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+
+    // First delete related charges
+    await db.delete(charges).where(sql`${charges.studentId} = ANY(${ids})`);
+
+    // Delete related student-guardian relationships
+    await db.delete(studentGuardians).where(sql`${studentGuardians.studentId} = ANY(${ids})`);
+
+    // Finally delete students
+    await db.delete(students).where(sql`${students.id} = ANY(${ids})`);
   }
 
   // Charges
@@ -427,6 +443,11 @@ export class DbStorage implements IStorage {
 
   async getGuardian(id: string): Promise<Guardian | undefined> {
     const [guardian] = await db.select().from(guardians).where(eq(guardians.id, id));
+    return guardian;
+  }
+
+  async getGuardianByCpf(cpf: string): Promise<Guardian | undefined> {
+    const [guardian] = await db.select().from(guardians).where(eq(guardians.cpf, cpf));
     return guardian;
   }
 

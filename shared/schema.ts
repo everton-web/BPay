@@ -221,3 +221,16 @@ export const insertSystemSettingSchema = createInsertSchema(systemSettings).omit
 
 export type InsertSystemSetting = z.infer<typeof insertSystemSettingSchema>;
 export type SystemSetting = typeof systemSettings.$inferSelect;
+
+// Schemas compostos para a API
+export const insertStudentWithGuardianSchema = insertStudentSchema.extend({
+  guardian: insertGuardianSchema.extend({
+    relationship: z.string().min(1, "Relacionamento é obrigatório")
+  }).optional()
+});
+
+export type InsertStudentWithGuardian = z.infer<typeof insertStudentWithGuardianSchema>;
+
+export const bulkDeleteStudentsSchema = z.object({
+  ids: z.array(z.string().uuid())
+});

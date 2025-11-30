@@ -4,6 +4,8 @@ import { storage } from "./storage";
 import {
   insertStudentSchema,
   updateStudentSchema,
+  insertStudentWithGuardianSchema,
+  bulkDeleteStudentsSchema,
   insertChargeSchema,
   insertGuardianSchema,
   updateGuardianSchema,
@@ -37,8 +39,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/students", async (req, res) => {
     try {
-      const validatedData = insertStudentSchema.parse(req.body);
-      const student = await storage.createStudent(validatedData);
+      const validatedData = insertStudentWithGuardianSchema.parse(req.body);
+      const { guardian, ...studentData } = validatedData;
+
+      const student = await storage.createStudent(studentData);
+
+      if (guardian) {
+        // Check if guardian exists by CPF
+        let guardianId: string;
+        const existingGuardian = await storage.getGuardianByCpf(guardian.cpf);
+
+        if (existingGuardian) {
+          guardianId = existingGuardian.id;
+        } else {
+          // Create new guardian
+          const { relationship, ...guardianFields } = guardian;
+          const newGuardian = await storage.createGuardian(guardianFields);
+          guardianId = newGuardian.id;
+        }
+
+        // Create relationship
+        await storage.associateStudentGuardian({
+          studentId: student.id,
+          guardianId: guardianId,
+          relationship: guardian.relationship,
+        });
+      }
+
       res.status(201).json(student);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -46,6 +73,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         console.error("Error creating student:", error);
         res.status(500).json({ error: "Failed to create student" });
+      }
+    }
+  });
+
+  app.post("/api/students/bulk-delete", async (req, res) => {
+    try {
+      const { ids } = bulkDeleteStudentsSchema.parse(req.body);
+      await storage.deleteStudents(ids);
+      res.status(200).json({ success: true, message: "Students deleted successfully" });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ error: "Validation error", details: error.errors });
+      } else {
+        console.error("Error deleting students:", error);
+        res.status(500).json({ error: "Failed to delete students" });
       }
     }
   });
